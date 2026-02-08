@@ -4,7 +4,7 @@
     { "src": "api/import-series.js", "use": "@vercel/node" }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "api/import-series.js" },
-    { "src": "/(.*)", "dest": "/client/$1" }
+    { "src": "^/api/.*", "dest": "/api/import-series.js" },
+    { "src": "^/(.*)", "dest": "/client/index.html" }
   ]
 }
