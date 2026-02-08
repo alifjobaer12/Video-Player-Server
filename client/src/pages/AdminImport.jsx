@@ -22,7 +22,7 @@ export default function AdminImport() {
     setStatus("Importing...");
 
     try {
-      const res = await fetch("http://localhost:4000/api/import-series", {
+      const res = await fetch("/api/import-series", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
