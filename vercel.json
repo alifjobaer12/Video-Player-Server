@@ -1,7 +1,10 @@
 {
-  "functions": {
-    "api/*.js": {
-      "runtime": "nodejs20.x"
-    }
-  }
+  "builds": [
+    { "src": "client/package.json", "use": "@vercel/static-build" },
+    { "src": "api/import-series.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "api/import-series.js" },
+    { "src": "/(.*)", "dest": "/client/$1" }
+  ]
 }
