@@ -1,11 +1,7 @@
 {
-  "builds": [
-    { "src": "client/package.json", "use": "@vercel/static-build" },
-    { "src": "api/import-series.js", "use": "@vercel/node" }
-  ],
-  "routes": [
-    { "src": "^/api/.*", "dest": "/api/import-series.js" },
-    { "src": "^/(.*)", "dest": "/client/index.html" }
+  "outputDirectory": "client/dist",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/import-series" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
-
