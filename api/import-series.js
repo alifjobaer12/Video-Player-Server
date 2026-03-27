@@ -17,10 +17,19 @@ async function connectDB() {
   return client;
 }
 
-/* ---------- Extract Episode Number ---------- */
+/* ---------- Extract Episode Number (FIXED) ---------- */
 function getEpNumber(name) {
-  const match = name.match(/\b(?:e|ep|episode)\s?(\d+)\b/i);
-  return match ? parseInt(match[1], 10) : 0;
+  if (!name) return 0;
+
+  // ✅ Match S01E01 format
+  let match = name.match(/S\d+E(\d+)/i);
+  if (match) return parseInt(match[1], 10);
+
+  // ✅ fallback (E01, EP02, Episode 3)
+  match = name.match(/\b(?:e|ep|episode)\s?(\d+)/i);
+  if (match) return parseInt(match[1], 10);
+
+  return 0;
 }
 
 /* ---------- Convert SvelteKit -> JSON (SORTED) ---------- */
@@ -120,19 +129,22 @@ export default async function handler(req, res) {
 
     $("script").each((_, el) => {
       const text = $(el).html();
-      if (text && text.includes("__sveltekit_"))
+      if (text && text.includes("__sveltekit_")) {
         scriptContent = text;
+      }
     });
 
-    if (!scriptContent)
+    if (!scriptContent) {
       return res.status(500).json({
         error: "Player data not found (site blocked request)"
       });
+    }
 
     /* ---------- Extract JSON ---------- */
     const match = scriptContent.match(/data:(\{[\s\S]*?\}),error/);
-    if (!match)
+    if (!match) {
       return res.status(500).json({ error: "Parse failed" });
+    }
 
     let svelteData;
     try {
