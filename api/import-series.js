@@ -17,9 +17,14 @@ async function connectDB() {
   return client;
 }
 
-/* ---------- Convert SvelteKit -> your JSON ---------- */
-function convertToSeriesJson(svelteData) {
+/* ---------- Extract Episode Number ---------- */
+function getEpNumber(name) {
+  const match = name.match(/\b(?:e|ep|episode)\s?(\d+)\b/i);
+  return match ? parseInt(match[1], 10) : 0;
+}
 
+/* ---------- Convert SvelteKit -> JSON (SORTED) ---------- */
+function convertToSeriesJson(svelteData) {
   if (!svelteData || !svelteData.name || !svelteData.info) {
     throw new Error("Invalid series data extracted");
   }
@@ -29,28 +34,41 @@ function convertToSeriesJson(svelteData) {
     .split("S01")[0]
     .trim();
 
-  const output = {
-    series: seriesName,
-    info: {}
-  };
+  /* Convert → Array */
+  const episodesArray = Object.entries(svelteData.info)
+    .map(([key, ep]) => {
+      if (!ep || !ep.name) return null;
 
-  for (const key in svelteData.info) {
-    const ep = svelteData.info[key];
-    if (!ep || !ep.name) continue;
+      return {
+        epKey: key,
+        epNum: getEpNumber(ep.name),
+        data: {
+          name: ep.name.replace(" mkv", ".mkv"),
+          streamwish_res: ep.streamwish_res || undefined,
+          streamtape_res: ep.streamtape_res || undefined
+        }
+      };
+    })
+    .filter(Boolean);
 
-    output.info[key] = {
-      name: ep.name.replace(" mkv", ".mkv"),
-      streamwish_res: ep.streamwish_res || undefined,
-      streamtape_res: ep.streamtape_res || undefined
-    };
+  /* Sort ASC */
+  episodesArray.sort((a, b) => a.epNum - b.epNum);
 
-    // remove empty fields
-    Object.keys(output.info[key]).forEach(k => {
-      if (!output.info[key][k]) delete output.info[key][k];
+  /* Back → Object */
+  const sortedInfo = {};
+
+  for (const item of episodesArray) {
+    Object.keys(item.data).forEach(k => {
+      if (!item.data[k]) delete item.data[k];
     });
+
+    sortedInfo[item.epKey] = item.data;
   }
 
-  return output;
+  return {
+    series: seriesName,
+    info: sortedInfo
+  };
 }
 
 /* ---------- MAIN API HANDLER ---------- */
@@ -131,7 +149,7 @@ export default async function handler(req, res) {
 
     const existing = await col.findOne({ series: finalJson.series });
 
-    /* New Series */
+    /* ---------- NEW SERIES ---------- */
     if (!existing) {
       await col.insertOne(finalJson);
 
@@ -143,15 +161,36 @@ export default async function handler(req, res) {
       });
     }
 
-    /* Merge Episodes */
-    const merged = { ...existing.info, ...finalJson.info };
+    /* ---------- MERGE + SORT AGAIN ---------- */
+    const combined = { ...existing.info, ...finalJson.info };
+
+    const mergedArray = [];
+
+    for (const key in combined) {
+      const ep = combined[key];
+
+      mergedArray.push({
+        key,
+        epNum: getEpNumber(ep.name),
+        data: ep
+      });
+    }
+
+    /* Sort ASC again */
+    mergedArray.sort((a, b) => a.epNum - b.epNum);
+
+    /* Rebuild object */
+    const mergedSorted = {};
+    mergedArray.forEach(item => {
+      mergedSorted[item.key] = item.data;
+    });
 
     const oldCount = Object.keys(existing.info).length;
-    const newCount = Object.keys(merged).length;
+    const newCount = Object.keys(mergedSorted).length;
 
     await col.updateOne(
       { series: finalJson.series },
-      { $set: { info: merged } }
+      { $set: { info: mergedSorted } }
     );
 
     return res.json({
