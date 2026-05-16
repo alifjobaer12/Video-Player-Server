@@ -6,7 +6,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         {/* secret admin route */}
-        <Route path="/panel/9f3k2p7x" element={<AdminImport />} />
+        <Route path="/" element={<AdminImport />} />
       </Routes>
     </BrowserRouter>
   );
